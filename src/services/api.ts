@@ -1,12 +1,27 @@
 import { User, Transaction, Contact } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 // Mock data (will be removed as functions are integrated)
-let currentUser: User | null = null; // This will now be populated from backend on successful login/getCurrentUser
-const transactions: Transaction[] = []; // TODO: Integrate with backend
-const contacts: Contact[] = []; // TODO: Integrate with backend
+let currentUser: User | null = null;
+const transactions: Transaction[] = []; 
+const contacts: Contact[] = []; 
 
-const API_BASE_URL = 'http://localhost:8080/api'; // <<-- ** IMPORTANTE: Actualiza esta URL si tu backend no corre en localhost:8080 **
+// URL del backend - Configuración adaptada según el entorno
+const getApiHost = () => {
+  if (Platform.OS === 'web') {
+    return 'localhost';
+  } else if (Platform.OS === 'ios') {
+    return 'localhost'; // En iOS, localhost funciona directamente en el simulador
+  } else if (Platform.OS === 'android') {
+    return '10.0.2.2'; // En emulador Android, se usa 10.0.2.2 para acceder a localhost de la máquina host
+  }
+  return 'localhost'; // Valor por defecto
+};
+
+const API_HOST = getApiHost();
+const API_PORT = '8080';
+const API_BASE_URL = `http://${API_HOST}:${API_PORT}/api`;
 const AUTH_TOKEN_KEY = '@user_token';
 
 const storeToken = async (token: string) => {
@@ -98,10 +113,7 @@ export const api = {
   // User
   getCurrentUser: async (): Promise<User> => {
     // Use cached user data if available, otherwise fetch
-    if (currentUser) {
-      return currentUser;
-    }
-    
+
     try {
       const headers = await getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/users/me`, {
@@ -129,54 +141,209 @@ export const api = {
     }
   },
 
-  // Add other API calls here, using getAuthHeaders() for authenticated requests
-
   // Transactions
   getTransactions: async (): Promise<Transaction[]> => {
-    // TODO: Implement actual get transactions API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return transactions;
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/transactions`, {
+        method: 'GET',
+        headers: headers
+      });
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+          currentUser = null;
+          throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+        }
+        
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.message || 'Error al obtener transacciones');
+      }
+
+      const data = await response.json();
+      
+      // Transforma los datos del backend al formato de Transaction esperado por el frontend
+      const transformedTransactions: Transaction[] = data.content.map((tx: any) => ({
+        id: tx.id.toString(),
+        amount: tx.type === 'incoming' ? parseFloat(tx.amount) : -parseFloat(tx.amount),
+        description: tx.description || 'Sin descripción',
+        status: tx.status,
+        date: tx.date,
+        type: tx.type === 'incoming' ? 'receive' : 'send',
+        recipientEmail: tx.to?.email || tx.from?.email
+      }));
+      
+      return transformedTransactions;
+
+    } catch (error) {
+      console.error('Error obteniendo transacciones:', error);
+      throw error;
+    }
   },
 
   transfer: async (amount: number, recipientEmail: string, description: string): Promise<Transaction> => {
-    // TODO: Implement actual transfer API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    if (!currentUser) throw new Error('Not authenticated');
-    if (currentUser.balance < amount) throw new Error('Insufficient funds');
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/transactions/transfer`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({
+          email: recipientEmail,
+          amount: amount,
+          description: description
+        }),
+      });
 
-    const transaction: Transaction = {
-      id: Math.random().toString(),
-      amount,
-      description,
-      status: 'completed',
-      date: new Date().toISOString(),
-      type: 'send',
-      recipientEmail
-    };
+      if (!response.ok) {
+        // Manejo específico para errores de autenticación
+        if (response.status === 401 || response.status === 403) {
+          await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+          currentUser = null;
+          throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+        }
+        
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.message || 'Error en la transferencia');
+      }
 
-    currentUser.balance -= amount;
-    transactions.unshift(transaction);
-    return transaction;
+      // Actualizar el usuario actual después de la transferencia exitosa
+      try {
+        const updatedUser = await api.getCurrentUser();
+        currentUser = updatedUser;
+      } catch (userError) {
+        console.warn('No se pudo actualizar los datos del usuario después de la transferencia:', userError);
+      }
+
+      // Crear el objeto de transacción basado en la respuesta del backend
+      const transaction: Transaction = {
+        id: Math.random().toString(), // Debería ser reemplazado por un ID real del backend
+        amount: -amount, // Negativo porque es dinero enviado
+        description: description || 'Transferencia',
+        status: 'completed',
+        date: new Date().toISOString(),
+        type: 'send',
+        recipientEmail
+      };
+
+      return transaction;
+
+    } catch (error) {
+      console.error('Error en API de transferencia:', error);
+      throw error;
+    }
   },
 
   // Contacts
   getContacts: async (): Promise<Contact[]> => {
-    // TODO: Implement actual get contacts API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return contacts;
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/contacts/favorites`, {
+        method: 'GET',
+        headers: headers
+      });
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+          currentUser = null;
+          throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+        }
+        
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.message || 'Error al obtener contactos');
+      }
+
+      const data = await response.json();
+      
+      // Transforma los datos del backend al formato de Contact esperado por el frontend
+      const transformedContacts: Contact[] = data.content.map((contact: any) => ({
+        id: contact.user.id.toString(),
+        firstName: contact.user.firstName,
+        lastName: contact.user.lastName,
+        email: contact.user.email,
+        isFavorite: contact.isFavorite
+      }));
+      
+      return transformedContacts;
+    } catch (error) {
+      console.error('Error obteniendo contactos:', error);
+      throw error;
+    }
   },
 
-  addContact: async (contactData: Omit<Contact, 'id'>): Promise<Contact> => {
-    // TODO: Implement actual add contact API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const contact: Contact = {
-      ...contactData,
-      id: Math.random().toString()
-    };
-    
-    contacts.push(contact);
-    return contact;
+  searchUsers: async (query: string): Promise<Contact[]> => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/users/search?query=${encodeURIComponent(query)}`, {
+        method: 'GET',
+        headers: headers
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al buscar usuarios');
+      }
+
+      const data = await response.json();
+      
+      // Transforma los datos del backend al formato de Contact
+      return data.map((user: any) => ({
+        id: user.id.toString(),
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        isFavorite: false
+      }));
+    } catch (error) {
+      console.error('Error buscando usuarios:', error);
+      throw error;
+    }
+  },
+
+  addContact: async (userId: string): Promise<Contact> => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/contacts/favorites`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({ userId: Number(userId) })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.message || 'Error al agregar contacto');
+      }
+
+      const contactData = await response.json();
+      
+      return {
+        id: contactData.user.id.toString(),
+        firstName: contactData.user.firstName,
+        lastName: contactData.user.lastName,
+        email: contactData.user.email,
+        isFavorite: contactData.isFavorite
+      };
+    } catch (error) {
+      console.error('Error al agregar contacto:', error);
+      throw error;
+    }
+  },
+
+  removeContact: async (contactId: string): Promise<void> => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/contacts/favorites/${contactId}`, {
+        method: 'DELETE',
+        headers: headers
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.message || 'Error al eliminar contacto');
+      }
+    } catch (error) {
+      console.error('Error al eliminar contacto:', error);
+      throw error;
+    }
   }
-}; 
+};

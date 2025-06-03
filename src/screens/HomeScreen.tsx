@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { Text, Button } from 'react-native-elements';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../services/api';
 
 const HomeScreen: React.FC = () => {
@@ -9,20 +9,33 @@ const HomeScreen: React.FC = () => {
   const [balance, setBalance] = useState<number>(0);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchBalance = async () => {
-      setLoading(true);
-      try {
-        const user = await api.getCurrentUser();
-        setBalance(user.balance);
-      } catch (e) {
-        Alert.alert('Error', 'Could not fetch balance');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchBalance();
+  const fetchBalance = useCallback(async () => {
+    setLoading(true);
+    try {
+      const user = await api.getCurrentUser();
+      setBalance(user.balance);
+    } catch (e) {
+      console.error('Error fetching balance:', e);
+      // No mostramos alerta aquí para evitar spam de alertas
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // Esta función se ejecutará cada vez que la pantalla reciba el foco
+  useFocusEffect(
+    useCallback(() => {
+      fetchBalance();
+      return () => {
+        // Función de limpieza si es necesaria
+      };
+    }, [fetchBalance])
+  );
+
+  // Esta función se ejecutará cuando el componente se monte por primera vez
+  useEffect(() => {
+    fetchBalance();
+  }, [fetchBalance]);
 
   return (
     <View style={styles.container}>
@@ -96,4 +109,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HomeScreen; 
+export default HomeScreen;

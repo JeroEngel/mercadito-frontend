@@ -21,13 +21,16 @@ export interface Contact {
   firstName: string;
   lastName: string;
   email: string;
+  isFavorite?: boolean;
 }
 
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   Main: undefined;
-  Transfer: undefined;
+  Transfer: {
+    email?: string;
+  };
   TransactionHistory: undefined;
   Contacts: undefined;
-}; 
+};

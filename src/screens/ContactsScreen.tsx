@@ -1,99 +1,220 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, FlatList, Alert } from 'react-native';
-import { Text, ListItem, Button, Input } from 'react-native-elements';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, StyleSheet, FlatList, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Text, ListItem, Button, Icon, SearchBar, Divider } from 'react-native-elements';
 import { api } from '../services/api';
 import { Contact } from '../types';
+import { useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types';
 
 const ContactsScreen: React.FC = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [showAdd, setShowAdd] = useState(false);
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
+  const [searchResults, setSearchResults] = useState<Contact[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchContacts = async () => {
-      const cts = await api.getContacts();
-      setContacts(cts);
-    };
-    fetchContacts();
+  // Cargar contactos
+  const fetchContacts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const contactsList = await api.getContacts();
+      setContacts(contactsList);
+    } catch (error: any) {
+      console.error('Error cargando contactos:', error);
+      setError(error.message || 'No se pudieron cargar los contactos');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
-  const handleAddContact = async () => {
-    if (!firstName || !lastName || !email) {
-      Alert.alert('Error', 'Completa todos los campos');
+  // Actualiza los contactos cuando la pantalla recibe el foco
+  useFocusEffect(
+    useCallback(() => {
+      fetchContacts();
+    }, [fetchContacts])
+  );
+
+  // Búsqueda de usuarios
+  const handleSearch = useCallback(async (query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
       return;
     }
-    const newContact = await api.addContact({ firstName, lastName, email });
-    setContacts([...contacts, newContact]);
-    setShowAdd(false);
-    setFirstName('');
-    setLastName('');
-    setEmail('');
+
+    try {
+      setSearching(true);
+      const results = await api.searchUsers(query);
+      // Filtra los usuarios que ya están en la lista de contactos
+      const filteredResults = results.filter(
+        user => !contacts.some(contact => contact.id === user.id)
+      );
+      setSearchResults(filteredResults);
+    } catch (error) {
+      console.error('Error en búsqueda:', error);
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }, [contacts]);
+
+  // Agregar un contacto
+  const handleAddContact = async (userId: string) => {
+    try {
+      setLoading(true);
+      const newContact = await api.addContact(userId);
+      setContacts(prevContacts => [...prevContacts, newContact]);
+      setSearchResults(searchResults.filter(user => user.id !== userId));
+      Alert.alert('Éxito', 'Contacto agregado a favoritos');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'No se pudo agregar el contacto');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Eliminar un contacto
+  const handleRemoveContact = async (contactId: string) => {
+    try {
+      setLoading(true);
+      await api.removeContact(contactId);
+      setContacts(contacts.filter(contact => contact.id !== contactId));
+      Alert.alert('Éxito', 'Contacto eliminado de favoritos');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'No se pudo eliminar el contacto');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Navegar a la pantalla de transferencia con el email prellenado
+  const handleContactPress = (contact: Contact) => {
+    try {
+      navigation.navigate('Transfer', { email: contact.email });
+    } catch (error) {
+      console.error('Error al navegar:', error);
+      Alert.alert('Error', 'No se pudo abrir la pantalla de transferencia');
+    }
+  };
+
+  // Renderizar un ítem de contacto
+  const renderContactItem = ({ item }: { item: Contact }) => (
+    <ListItem 
+      bottomDivider 
+      testID={`contact-item-${item.id}`}
+      accessibilityLabel={`Contact item ${item.id}`}
+      onPress={() => handleContactPress(item)}
+    >
+      <ListItem.Content>
+        <ListItem.Title>{item.firstName} {item.lastName}</ListItem.Title>
+        <ListItem.Subtitle>{item.email}</ListItem.Subtitle>
+      </ListItem.Content>
+      <TouchableOpacity 
+        onPress={(e) => {
+          e.stopPropagation(); // Evita que se active el onPress del ListItem
+          handleRemoveContact(item.id);
+        }}
+        style={styles.removeButton}
+        testID={`remove-contact-${item.id}`}
+      >
+        <Icon name="delete" color="#FF3B30" size={24} />
+      </TouchableOpacity>
+    </ListItem>
+  );
+
+  // Renderizar un ítem de resultado de búsqueda
+  const renderSearchResultItem = ({ item }: { item: Contact }) => (
+    <ListItem 
+      bottomDivider 
+      testID={`search-result-${item.id}`}
+      accessibilityLabel={`Search result ${item.id}`}
+    >
+      <ListItem.Content>
+        <ListItem.Title>{item.firstName} {item.lastName}</ListItem.Title>
+        <ListItem.Subtitle>{item.email}</ListItem.Subtitle>
+      </ListItem.Content>
+      <TouchableOpacity 
+        onPress={() => handleAddContact(item.id)}
+        style={styles.addButton}
+        testID={`add-contact-${item.id}`}
+      >
+        <Icon name="add" color="#007AFF" size={24} />
+      </TouchableOpacity>
+    </ListItem>
+  );
 
   return (
     <View style={styles.container}>
       <Text h4 style={styles.title}>Contactos favoritos</Text>
-      <FlatList
-        data={contacts}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <ListItem bottomDivider testID={`contact-item-${item.id}`} accessibilityLabel={`Contact item ${item.id}`}>
-            <ListItem.Content>
-              <ListItem.Title>{item.firstName} {item.lastName}</ListItem.Title>
-              <ListItem.Subtitle>{item.email}</ListItem.Subtitle>
-            </ListItem.Content>
-          </ListItem>
-        )}
-        ListEmptyComponent={<Text style={styles.empty}>No hay contactos</Text>}
+      
+      {/* Barra de búsqueda */}
+      <SearchBar
+        placeholder="Buscar usuarios por nombre o email..."
+        onChangeText={handleSearch}
+        value={searchQuery}
+        platform="ios"
+        containerStyle={styles.searchBar}
+        onClear={() => setSearchResults([])}
+        showLoading={searching}
+        testID="search-bar"
       />
-      {showAdd ? (
-        <View style={styles.addContainer}>
-          <Input
-            placeholder="Nombre"
-            value={firstName}
-            onChangeText={setFirstName}
-            testID="add-contact-first-name"
-            accessibilityLabel="Add contact first name"
+      
+      {/* Resultados de búsqueda */}
+      {searchResults.length > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>Resultados de búsqueda</Text>
+          <FlatList
+            data={searchResults}
+            keyExtractor={(item) => item.id}
+            renderItem={renderSearchResultItem}
+            style={styles.searchResultsList}
+            ListEmptyComponent={searching ? 
+              <ActivityIndicator size="small" color="#007AFF" /> : 
+              <Text style={styles.emptyMessage}>No se encontraron resultados</Text>
+            }
           />
-          <Input
-            placeholder="Apellido"
-            value={lastName}
-            onChangeText={setLastName}
-            testID="add-contact-last-name"
-            accessibilityLabel="Add contact last name"
-          />
-          <Input
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            testID="add-contact-email"
-            accessibilityLabel="Add contact email"
-          />
-          <Button
-            title="Agregar"
-            onPress={handleAddContact}
-            testID="add-contact-confirm"
-            accessibilityLabel="Add contact confirm button"
-          />
-          <Button
-            title="Cancelar"
-            type="clear"
-            onPress={() => setShowAdd(false)}
-            testID="add-contact-cancel"
-            accessibilityLabel="Add contact cancel button"
+          <Divider style={styles.divider} />
+        </>
+      )}
+      
+      {/* Lista de contactos favoritos */}
+      <Text style={styles.sectionTitle}>Mis contactos</Text>
+      
+      {error ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Button 
+            title="Reintentar" 
+            onPress={fetchContacts} 
+            type="outline"
+            containerStyle={styles.retryButton}
           />
         </View>
+      ) : loading && !refreshing ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
       ) : (
-        <Button
-          title="Agregar nuevo contacto"
-          onPress={() => setShowAdd(true)}
-          containerStyle={styles.addButton}
-          testID="add-contact-button"
-          accessibilityLabel="Add new contact button"
+        <FlatList
+          data={contacts}
+          keyExtractor={(item) => item.id}
+          renderItem={renderContactItem}
+          ListEmptyComponent={
+            <Text style={styles.emptyMessage}>No hay contactos favoritos</Text>
+          }
+          onRefresh={() => {
+            setRefreshing(true);
+            fetchContacts();
+          }}
+          refreshing={refreshing}
+          style={styles.contactList}
         />
       )}
     </View>
@@ -103,24 +224,66 @@ const ContactsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    padding: 16,
     backgroundColor: '#fff',
   },
   title: {
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  empty: {
+  searchBar: {
+    backgroundColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderTopColor: 'transparent',
+    marginBottom: 10,
+  },
+  searchResultsList: {
+    maxHeight: 200,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginVertical: 8,
+    color: '#333',
+  },
+  emptyMessage: {
     textAlign: 'center',
-    marginTop: 40,
+    marginTop: 20,
     color: '#888',
   },
+  contactList: {
+    flex: 1,
+  },
+  divider: {
+    marginVertical: 10,
+    backgroundColor: '#E0E0E0',
+    height: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removeButton: {
+    padding: 8,
+  },
   addButton: {
-    marginTop: 20,
+    padding: 8,
   },
-  addContainer: {
-    marginTop: 20,
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
+  errorText: {
+    color: '#FF3B30',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    width: '50%',
+  }
 });
 
-export default ContactsScreen; 
+export default ContactsScreen;
