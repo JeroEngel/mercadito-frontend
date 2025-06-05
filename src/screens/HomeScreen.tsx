@@ -55,28 +55,20 @@ const HomeScreen: React.FC = () => {
         accessibilityLabel="Send money button"
       />
       <Button
-        title="Recibir dinero"
+        title="Retirar dinero"
         type="outline"
-        onPress={() => Alert.alert('Recibir dinero', 'Funcionalidad simulada')}
+        onPress={() => navigation.navigate('Withdraw' as never)}
         containerStyle={styles.button}
-        testID="receive-money-button"
-        accessibilityLabel="Receive money button"
+        testID="withdraw-money-button"
+        accessibilityLabel="Withdraw money button"
       />
       <Button
-        title="Solicitar DEBIN"
+        title="Cargar dinero"
         type="outline"
-        onPress={() => Alert.alert('Solicitar DEBIN', 'Funcionalidad simulada')}
+        onPress={() => navigation.navigate('Deposit' as never)}
         containerStyle={styles.button}
-        testID="debin-button"
-        accessibilityLabel="Request DEBIN button"
-      />
-      <Button
-        title="Cargar saldo"
-        type="outline"
-        onPress={() => Alert.alert('Cargar saldo', 'Funcionalidad simulada')}
-        containerStyle={styles.button}
-        testID="load-balance-button"
-        accessibilityLabel="Load balance button"
+        testID="load-money-button"
+        accessibilityLabel="Load money button"
       />
       <Button
         title="Ver historial de transacciones"

@@ -1,11 +1,10 @@
-import { User, Transaction, Contact } from '../types';
+import { User, Transaction } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // Mock data (will be removed as functions are integrated)
 let currentUser: User | null = null;
 const transactions: Transaction[] = []; 
-const contacts: Contact[] = []; 
 
 // URL del backend - Configuración adaptada según el entorno
 const getApiHost = () => {
@@ -24,6 +23,12 @@ const API_PORT = '8080';
 const API_BASE_URL = `http://${API_HOST}:${API_PORT}/api`;
 const AUTH_TOKEN_KEY = '@user_token';
 
+// URL del Fake Bank API
+const FAKE_BANK_HOST = getApiHost();
+const FAKE_BANK_PORT = '3000';
+const FAKE_BANK_URL = `http://${FAKE_BANK_HOST}:${FAKE_BANK_PORT}`;
+
+// Funciones para manejo de token
 const storeToken = async (token: string) => {
   try {
     await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);
@@ -234,115 +239,125 @@ export const api = {
     }
   },
 
-  // Contacts
-  getContacts: async (): Promise<Contact[]> => {
+  // Withdraw money to bank account
+  withdrawMoney: async (cvu: string, amount: number): Promise<{ success: boolean; message: string; newBalance: number }> => {
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/contacts/favorites`, {
-        method: 'GET',
-        headers: headers
-      });
-
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
-          currentUser = null;
-          throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
-        }
-        
-        const errorData = await response.json();
-        throw new Error(errorData.error || errorData.message || 'Error al obtener contactos');
+      // Primero verificar que el usuario tenga saldo suficiente
+      const currentUser = await api.getCurrentUser();
+      
+      if (currentUser.balance < amount) {
+        throw new Error('Saldo insuficiente en tu cuenta');
       }
 
-      const data = await response.json();
-      
-      // Transforma los datos del backend al formato de Contact esperado por el frontend
-      const transformedContacts: Contact[] = data.content.map((contact: any) => ({
-        id: contact.user.id.toString(),
-        firstName: contact.user.firstName,
-        lastName: contact.user.lastName,
-        email: contact.user.email,
-        isFavorite: contact.isFavorite
-      }));
-      
-      return transformedContacts;
-    } catch (error) {
-      console.error('Error obteniendo contactos:', error);
-      throw error;
-    }
-  },
-
-  searchUsers: async (query: string): Promise<Contact[]> => {
-    try {
-      const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/users/search?query=${encodeURIComponent(query)}`, {
-        method: 'GET',
-        headers: headers
+      // Hacer el retiro al banco externo
+      const bankResponse = await fetch(`${FAKE_BANK_URL}/withdraw`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cvu: cvu,
+          amount: amount
+        }),
       });
 
-      if (!response.ok) {
-        throw new Error('Error al buscar usuarios');
+      if (!bankResponse.ok) {
+        const errorData = await bankResponse.json();
+        throw new Error(errorData.error || 'Error en el retiro bancario');
       }
 
-      const data = await response.json();
-      
-      // Transforma los datos del backend al formato de Contact
-      return data.map((user: any) => ({
-        id: user.id.toString(),
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        isFavorite: false
-      }));
-    } catch (error) {
-      console.error('Error buscando usuarios:', error);
-      throw error;
-    }
-  },
+      const bankData = await bankResponse.json();
 
-  addContact: async (userId: string): Promise<Contact> => {
-    try {
+      // Si el retiro bancario fue exitoso, debitar de la cuenta del usuario
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/contacts/favorites`, {
+      const walletResponse = await fetch(`${API_BASE_URL}/transactions/withdraw`, {
         method: 'POST',
         headers: headers,
-        body: JSON.stringify({ userId: Number(userId) })
+        body: JSON.stringify({
+          amount: amount,
+          cvu: cvu,
+          description: `Retiro a cuenta bancaria ${cvu}`
+        }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || errorData.message || 'Error al agregar contacto');
+      if (!walletResponse.ok) {
+        // Si falla el débito en nuestra wallet, intentar revertir en el banco
+        // (En un sistema real, esto requeriría un mecanismo de compensación más robusto)
+        console.error('Error al debitar de la wallet, se requiere reversión manual');
+        const errorData = await walletResponse.json();
+        throw new Error(errorData.error || errorData.message || 'Error al procesar el retiro');
       }
 
-      const contactData = await response.json();
-      
       return {
-        id: contactData.user.id.toString(),
-        firstName: contactData.user.firstName,
-        lastName: contactData.user.lastName,
-        email: contactData.user.email,
-        isFavorite: contactData.isFavorite
+        success: true,
+        message: `Retiro exitoso a ${bankData.data.nombre}`,
+        newBalance: bankData.data.newBalance
       };
+
     } catch (error) {
-      console.error('Error al agregar contacto:', error);
+      console.error('Error en retiro de dinero:', error);
       throw error;
     }
   },
 
-  removeContact: async (contactId: string): Promise<void> => {
+  // Deposit money from bank account
+  depositMoney: async (cvu: string, amount: number): Promise<{ success: boolean; message: string; newBalance: number }> => {
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/contacts/favorites/${contactId}`, {
-        method: 'DELETE',
-        headers: headers
+      console.log('Iniciando depósito:', { cvu, amount });
+      
+      // Primero llamar al Fake Bank API para debitar el dinero de la cuenta bancaria
+      const fakeBankResponse = await fetch(`${FAKE_BANK_URL}/deposit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cvu,
+          amount
+        }),
       });
+
+      if (!fakeBankResponse.ok) {
+        const errorData = await fakeBankResponse.json();
+        console.error('Error en fake bank API:', errorData);
+        throw new Error(errorData.error || 'Error en el servicio bancario');
+      }
+
+      const fakeBankResult = await fakeBankResponse.json();
+      console.log('Fake bank response exitosa:', fakeBankResult);
+
+      // Luego llamar a nuestra API para acreditar el dinero en la wallet
+      const headers = await getAuthHeaders();
+      console.log('Headers para wallet API:', headers);
+      
+      const response = await fetch(`${API_BASE_URL}/transactions/deposit`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({
+          cvu,
+          amount,
+          description: `Carga desde cuenta bancaria ${cvu}`
+        }),
+      });
+
+      console.log('Wallet API response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || errorData.message || 'Error al eliminar contacto');
+        console.error('Error en wallet API:', errorData);
+        throw new Error(errorData.error || errorData.message || 'Error al procesar la carga en la wallet');
       }
+
+      const walletResult = await response.json();
+      console.log('Wallet API response exitosa:', walletResult);
+
+      return {
+        success: true,
+        message: 'Carga realizada exitosamente',
+        newBalance: fakeBankResult.data.newBalance
+      };
     } catch (error) {
-      console.error('Error al eliminar contacto:', error);
+      console.error('Error en carga:', error);
       throw error;
     }
   }

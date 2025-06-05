@@ -10,7 +10,8 @@ import RegisterScreen from '../screens/RegisterScreen';
 import HomeScreen from '../screens/HomeScreen';
 import TransferScreen from '../screens/TransferScreen';
 import TransactionHistoryScreen from '../screens/TransactionHistoryScreen';
-import ContactsScreen from '../screens/ContactsScreen';
+import WithdrawScreen from '../screens/WithdrawScreen';
+import DepositScreen from '../screens/DepositScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
@@ -34,15 +35,6 @@ const MainTabs = () => {
           title: 'History',
           // tabBarTestID: 'history-tab',
           // tabBarAccessibilityLabel: 'Transaction history tab'
-        }}
-      />
-      <Tab.Screen 
-        name="Contacts" 
-        component={ContactsScreen}
-        options={{
-          title: 'Contacts',
-          // tabBarTestID: 'contacts-tab',
-          // tabBarAccessibilityLabel: 'Contacts tab'
         }}
       />
     </Tab.Navigator>
@@ -73,7 +65,17 @@ export const Navigation = () => {
           component={TransferScreen}
           options={{ title: 'Transfer Money' }}
         />
+        <Stack.Screen 
+          name="Withdraw" 
+          component={WithdrawScreen}
+          options={{ title: 'Retirar Dinero' }}
+        />
+        <Stack.Screen 
+          name="Deposit" 
+          component={DepositScreen}
+          options={{ title: 'Cargar Dinero' }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
-}; 
+};

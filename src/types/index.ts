@@ -16,14 +16,6 @@ export interface Transaction {
   recipientEmail?: string;
 }
 
-export interface Contact {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  isFavorite?: boolean;
-}
-
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
@@ -32,5 +24,6 @@ export type RootStackParamList = {
     email?: string;
   };
   TransactionHistory: undefined;
-  Contacts: undefined;
+  Withdraw: undefined;
+  Deposit: undefined;
 };
