@@ -16,18 +16,14 @@ export interface Transaction {
   recipientEmail?: string;
 }
 
-export interface Contact {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-}
-
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   Main: undefined;
-  Transfer: undefined;
+  Transfer: {
+    email?: string;
+  };
   TransactionHistory: undefined;
-  Contacts: undefined;
-}; 
+  Withdraw: undefined;
+  Deposit: undefined;
+};

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { Text, Button } from 'react-native-elements';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../services/api';
 
 const HomeScreen: React.FC = () => {
@@ -9,20 +9,33 @@ const HomeScreen: React.FC = () => {
   const [balance, setBalance] = useState<number>(0);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchBalance = async () => {
-      setLoading(true);
-      try {
-        const user = await api.getCurrentUser();
-        setBalance(user.balance);
-      } catch (e) {
-        Alert.alert('Error', 'Could not fetch balance');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchBalance();
+  const fetchBalance = useCallback(async () => {
+    setLoading(true);
+    try {
+      const user = await api.getCurrentUser();
+      setBalance(user.balance);
+    } catch (e) {
+      console.error('Error fetching balance:', e);
+      // No mostramos alerta aquí para evitar spam de alertas
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // Esta función se ejecutará cada vez que la pantalla reciba el foco
+  useFocusEffect(
+    useCallback(() => {
+      fetchBalance();
+      return () => {
+        // Función de limpieza si es necesaria
+      };
+    }, [fetchBalance])
+  );
+
+  // Esta función se ejecutará cuando el componente se monte por primera vez
+  useEffect(() => {
+    fetchBalance();
+  }, [fetchBalance]);
 
   return (
     <View style={styles.container}>
@@ -42,28 +55,20 @@ const HomeScreen: React.FC = () => {
         accessibilityLabel="Send money button"
       />
       <Button
-        title="Recibir dinero"
+        title="Retirar dinero"
         type="outline"
-        onPress={() => Alert.alert('Recibir dinero', 'Funcionalidad simulada')}
+        onPress={() => navigation.navigate('Withdraw' as never)}
         containerStyle={styles.button}
-        testID="receive-money-button"
-        accessibilityLabel="Receive money button"
+        testID="withdraw-money-button"
+        accessibilityLabel="Withdraw money button"
       />
       <Button
-        title="Solicitar DEBIN"
+        title="Cargar dinero"
         type="outline"
-        onPress={() => Alert.alert('Solicitar DEBIN', 'Funcionalidad simulada')}
+        onPress={() => navigation.navigate('Deposit' as never)}
         containerStyle={styles.button}
-        testID="debin-button"
-        accessibilityLabel="Request DEBIN button"
-      />
-      <Button
-        title="Cargar saldo"
-        type="outline"
-        onPress={() => Alert.alert('Cargar saldo', 'Funcionalidad simulada')}
-        containerStyle={styles.button}
-        testID="load-balance-button"
-        accessibilityLabel="Load balance button"
+        testID="load-money-button"
+        accessibilityLabel="Load money button"
       />
       <Button
         title="Ver historial de transacciones"
@@ -96,4 +101,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HomeScreen; 
+export default HomeScreen;
