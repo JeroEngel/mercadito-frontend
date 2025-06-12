@@ -24,25 +24,31 @@ jobs:
       - name: Build frontend Docker image
         run: docker build -t mercadito-frontend .
 
-      - name: Log in to GitHub Container Registry
+      - name: Log in to GHCR
         run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u mpiccinini --password-stdin
 
       - name: Run backend container
+        run: docker run -d -p 3000:3000 --name backend ghcr.io/mpiccinini/mercadito-backend:1.1.1
+
+      - name: Debug backend container logs
+        run: docker logs backend || true
+
+      - name: Wait for backend to be ready
         run: |
-          docker run -d -p 3000:3000 --name backend ghcr.io/mpiccinini/mercadito-backend:1.1.1
+          for i in {1..10}; do
+            if curl -s http://localhost:3000/accounts; then
+              echo "Backend is ready"
+              break
+            else
+              echo "Waiting for backend..."
+              sleep 5
+            fi
+          done
 
       - name: Run frontend container
         run: |
           docker run -d -p 19006:19006 --name frontend mercadito-frontend
-
-      - name: Wait for backend to become available
-        run: |
-          echo "Waiting for backend to start..."
-          for i in {1..30}; do
-            curl -s http://localhost:3000/accounts && break
-            echo "Attempt $i: Backend not ready, retrying..."
-            sleep 3
-          done
+          sleep 10
 
       - name: Run Cypress Tests
         uses: cypress-io/github-action@v6
@@ -52,10 +58,6 @@ jobs:
           wait-on-timeout: 60
         env:
           CYPRESS_baseUrl: http://localhost:19006
-
-      - name: Print backend logs on failure
-        if: failure()
-        run: docker logs backend
 
       - name: Stop containers
         run: |
