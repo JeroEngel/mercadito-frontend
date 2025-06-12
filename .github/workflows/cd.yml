@@ -6,11 +6,11 @@ on:
       - main
 
 jobs:
-  build-and-publish:
+  docker-publish:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Node.js
@@ -18,21 +18,18 @@ jobs:
         with:
           node-version: 20
 
-      - name: Retry install dependencies
-        run: |
-          for i in 1 2 3; do
-            npm install --legacy-peer-deps && break || sleep 10
-          done
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
 
-      - name: Log in to GitHub Container Registry
-        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u mpiccinini --password-stdin
+      - name: Log in to GitHub Container Registry (GHCR)
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build Docker image
         run: |
-          IMAGE_NAME=ghcr.io/mpiccinini/mercadito-frontend
+          IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/mercadito-frontend
           docker build -t $IMAGE_NAME:latest .
 
       - name: Push Docker image
         run: |
-          IMAGE_NAME=ghcr.io/mpiccinini/mercadito-frontend
+          IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/mercadito-frontend
           docker push $IMAGE_NAME:latest
