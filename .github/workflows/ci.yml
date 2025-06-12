@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  docker-build-and-check:
+  cypress-tests:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,14 +24,19 @@ jobs:
       - name: Build Docker image
         run: docker build -t mercadito-frontend .
 
-      - name: Run Expo Web in background
+      - name: Start Expo Web in background
         run: |
           docker run -d -p 19006:19006 --name mercadito-check mercadito-frontend
           sleep 15
 
-      - name: Health check on Expo server
-        run: |
-          curl --fail http://localhost:19006 || (echo "Expo server did not respond" && exit 1)
+      - name: Run Cypress Tests
+        uses: cypress-io/github-action@v6
+        with:
+          start: echo "already running"
+          wait-on: http://localhost:19006
+          wait-on-timeout: 60
+        env:
+          CYPRESS_baseUrl: http://localhost:19006
 
-      - name: Stop container
+      - name: Stop Docker container
         run: docker stop mercadito-check
