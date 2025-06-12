@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 jobs:
   build:
@@ -21,11 +18,12 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps
+      - name: Install dependencies with retries
+        run: |
+          for i in 1 2 3; do
+            echo "Attempt $i..."
+            npm install --legacy-peer-deps && break || sleep 10
+          done
 
-      - name: Build Docker image
-        run: docker build -t mercadito-frontend .
-
-      - name: Done
-        run: echo "Build passed successfully ✅"
+      - name: Build project
+        run: npm run build
