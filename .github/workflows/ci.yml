@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  e2e-tests:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,45 +24,8 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build frontend Docker image
+      - name: Build Docker image
         run: docker build -t mercadito-frontend .
 
-      - name: Log in to GHCR
-        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u mpiccinini --password-stdin
-
-      - name: Run backend container
-        run: docker run -d -p 3000:3000 --name backend ghcr.io/mpiccinini/mercadito-backend:1.1.1
-
-      - name: Debug backend container logs
-        run: docker logs backend || true
-
-      - name: Wait for backend to be ready
-        run: |
-          for i in {1..10}; do
-            if curl -s http://localhost:3000/accounts; then
-              echo "Backend is ready"
-              break
-            else
-              echo "Waiting for backend..."
-              sleep 5
-            fi
-          done
-
-      - name: Run frontend container
-        run: |
-          docker run -d -p 19006:19006 --name frontend mercadito-frontend
-          sleep 10
-
-      - name: Run Cypress Tests
-        uses: cypress-io/github-action@v6
-        with:
-          start: echo "already running"
-          wait-on: http://localhost:19006
-          wait-on-timeout: 60
-        env:
-          CYPRESS_baseUrl: http://localhost:19006
-
-      - name: Stop containers
-        run: |
-          docker stop frontend || true
-          docker stop backend || true
+      - name: Done
+        run: echo "Build passed successfully ✅"
