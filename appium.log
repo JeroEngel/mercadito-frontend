@@ -1,0 +1,9 @@
+2025-06-12 13:38:46:059 [Appium] Welcome to Appium v2.19.0 (REV 02c2268403ed26c318985701d809c412f65a28ad)
+2025-06-12 13:38:46:060 [Appium] Non-default server args:
+2025-06-12 13:38:46:061 [Appium] { address: 'localhost', basePath: '/', relaxedSecurityEnabled: true }
+2025-06-12 13:38:46:061 [Appium] Enabling relaxed security. All insecure features will be enabled unless explicitly disabled by --deny-insecure
+2025-06-12 13:38:46:061 [Appium] The autodetected Appium home path: /Users/jeroengelhard/ACS/mercadito-front
+2025-06-12 13:38:46:077 [Appium] Appium REST http interface listener started on http://localhost:4723
+2025-06-12 13:38:46:077 [Appium] No drivers have been installed in /Users/jeroengelhard/ACS/mercadito-front. Use the "appium driver" command to install the one(s) you want to use.
+2025-06-12 13:38:46:078 [Appium] No plugins have been installed. Use the "appium plugin" command to install the one(s) you want to use.
+2025-06-12 13:38:51:899 [Appium] Received SIGTERM - shutting down
