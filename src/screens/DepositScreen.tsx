@@ -55,8 +55,8 @@ const DepositScreen: React.FC = () => {
       // Llamar a la API real para cargar dinero
       const result = await api.depositMoney(cvu, numericAmount);
       
-      // Navegar directamente a Main sin Alert
-      navigation.navigate('Main');
+      // Usar goBack() para volver a la pantalla anterior (Home)
+      navigation.goBack();
       
     } catch (error: any) {
       console.error('Error completo en carga de dinero:', error);

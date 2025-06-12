@@ -6,7 +6,13 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "test:e2e": "cypress run",
+    "test:e2e:headed": "cypress run --headed",
+    "test:wallet-flow": "cypress run --spec cypress/e2e/wallet-complete-flow.cy.js",
+    "test:bank-integration": "cypress run --spec cypress/e2e/fake-bank-integration.cy.js"
   },
   "dependencies": {
     "@expo/webpack-config": "^19.0.0",
@@ -26,8 +32,10 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@testing-library/react-native": "^13.2.0",
     "@types/react": "~18.2.45",
     "crypto-browserify": "^3.12.1",
+    "cypress": "^14.4.1",
     "react-dom": "^18.2.0",
     "stream-browserify": "^3.0.0",
     "typescript": "^5.1.3"

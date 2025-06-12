@@ -1,0 +1,38 @@
+{
+  "testUsers": {
+    "user1": {
+      "firstName": "Juan",
+      "lastName": "Pérez",
+      "email": "juan.perez.test@example.com",
+      "password": "password123"
+    },
+    "user2": {
+      "firstName": "María",
+      "lastName": "García",
+      "email": "maria.garcia.test@example.com", 
+      "password": "password456"
+    }
+  },
+  "bankAccounts": {
+    "account1": {
+      "cvu": "0000003100010000000001",
+      "owner": "Juan Pérez",
+      "initialBalance": 15000.50
+    },
+    "account2": {
+      "cvu": "0000003100010000000002",
+      "owner": "María García", 
+      "initialBalance": 25000.00
+    }
+  },
+  "transactions": {
+    "deposit": {
+      "amount": 100,
+      "description": "Carga inicial de dinero"
+    },
+    "transfer": {
+      "amount": 50,
+      "description": "Transferencia de prueba"
+    }
+  }
+}
