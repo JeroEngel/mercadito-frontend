@@ -208,8 +208,18 @@ export const api = {
           throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
         }
         
-        const errorData = await response.json();
-        throw new Error(errorData.error || errorData.message || 'Error en la transferencia');
+        // Intentar parsear la respuesta de error del backend
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          console.error('Error parseando respuesta del backend:', parseError);
+          throw new Error('Error en la transferencia');
+        }
+        
+        // Extraer el mensaje específico del backend
+        const backendMessage = errorData.message || errorData.error || 'Error en la transferencia';
+        throw new Error(backendMessage);
       }
 
       // Actualizar el usuario actual después de la transferencia exitosa
@@ -242,13 +252,6 @@ export const api = {
   // Withdraw money to bank account
   withdrawMoney: async (cvu: string, amount: number): Promise<{ success: boolean; message: string; newBalance: number }> => {
     try {
-      // Primero verificar que el usuario tenga saldo suficiente
-      const currentUser = await api.getCurrentUser();
-      
-      if (currentUser.balance < amount) {
-        throw new Error('Saldo insuficiente en tu cuenta');
-      }
-
       // Hacer el retiro al banco externo
       const bankResponse = await fetch(`${FAKE_BANK_URL}/withdraw`, {
         method: 'POST',
@@ -281,11 +284,20 @@ export const api = {
       });
 
       if (!walletResponse.ok) {
-        // Si falla el débito en nuestra wallet, intentar revertir en el banco
-        // (En un sistema real, esto requeriría un mecanismo de compensación más robusto)
-        console.error('Error al debitar de la wallet, se requiere reversión manual');
-        const errorData = await walletResponse.json();
-        throw new Error(errorData.error || errorData.message || 'Error al procesar el retiro');
+        // Intentar parsear la respuesta de error del backend
+        let errorData;
+        try {
+          errorData = await walletResponse.json();
+        } catch (parseError) {
+          console.error('Error parseando respuesta del backend:', parseError);
+          throw new Error('Error al procesar el retiro');
+        }
+        
+        // Extraer el mensaje específico del backend
+        const backendMessage = errorData.message || errorData.error || 'Error al procesar el retiro';
+        console.log('Mensaje del backend extraído:', backendMessage);
+        
+        throw new Error(backendMessage);
       }
 
       return {

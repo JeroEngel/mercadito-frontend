@@ -14,29 +14,33 @@ const WithdrawScreen: React.FC = () => {
   const [cvu, setCvu] = useState('');
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleWithdraw = async () => {
+    // Limpiar mensaje de error previo
+    setErrorMessage('');
+    
     // Validaciones
     if (!cvu.trim()) {
-      Alert.alert('Error', 'Por favor, ingresa un CVU válido');
+      setErrorMessage('Por favor, ingresa un CVU válido');
       return;
     }
 
     if (!amount.trim()) {
-      Alert.alert('Error', 'Por favor, ingresa una cantidad');
+      setErrorMessage('Por favor, ingresa una cantidad');
       return;
     }
 
     const numericAmount = parseFloat(amount);
     if (isNaN(numericAmount) || numericAmount <= 0) {
-      Alert.alert('Error', 'Por favor, ingresa una cantidad válida mayor a 0');
+      setErrorMessage('Por favor, ingresa una cantidad válida mayor a 0');
       return;
     }
 
     // Validar formato de CVU (22 dígitos)
     const cvuRegex = /^\d{22}$/;
     if (!cvuRegex.test(cvu)) {
-      Alert.alert('Error', 'El CVU debe tener exactamente 22 dígitos');
+      setErrorMessage('El CVU debe tener exactamente 22 dígitos');
       return;
     }
 
@@ -52,13 +56,40 @@ const WithdrawScreen: React.FC = () => {
         [
           {
             text: 'OK',
-            onPress: () => navigation.goBack()
+            onPress: () => {
+              // Usar goBack para regresar al home y que se actualice el saldo
+              navigation.goBack();
+            }
           }
         ]
       );
       
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'No se pudo completar el retiro');
+      console.error('Error completo en retiro de dinero:', error);
+      console.error('Tipo de error:', typeof error);
+      console.error('Mensaje del error:', error?.message);
+      
+      // Mejorar el parsing del mensaje de error del backend
+      let errorMessage = '';
+      
+      if (error instanceof Error) {
+        // Si el error contiene información del backend, extraer el mensaje específico
+        if (error.message.includes('Saldo insuficiente')) {
+          errorMessage = 'Saldo insuficiente para realizar el retiro';
+        } else if (error.message && 
+                   !error.message.includes('Unexpected token') && 
+                   !error.message.includes('not valid JSON') &&
+                   !error.message.includes('Bad Request')) {
+          errorMessage = error.message;
+        } else {
+          // Para "Bad Request" y otros errores genéricos, mostrar mensaje específico
+          errorMessage = 'Saldo insuficiente para realizar el retiro';
+        }
+      } else {
+        errorMessage = 'Saldo insuficiente para realizar el retiro';
+      }
+      
+      setErrorMessage(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -67,6 +98,13 @@ const WithdrawScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <Text h4 style={styles.title}>Retirar dinero</Text>
+      
+      {/* Mostrar mensaje de error si existe */}
+      {errorMessage ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        </View>
+      ) : null}
       
       <Input
         placeholder="CVU (22 dígitos)"
@@ -114,6 +152,20 @@ const styles = StyleSheet.create({
   title: {
     textAlign: 'center',
     marginBottom: 30,
+  },
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    borderColor: '#f44336',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#c62828',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   inputContainer: {
     marginBottom: 10,

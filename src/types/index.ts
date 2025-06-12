@@ -19,7 +19,7 @@ export interface Transaction {
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
-  Main: undefined;
+  Main: { screen?: string } | undefined;
   Transfer: {
     email?: string;
   };
