@@ -41,8 +41,8 @@ jobs:
         with:
           start: echo "already running"
           wait-on: |
-            http://localhost:19006
-            http://localhost:3000
+            - http://localhost:19006
+            - http://localhost:3000
           wait-on-timeout: 60
         env:
           CYPRESS_baseUrl: http://localhost:19006
