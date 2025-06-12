@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  docker-build:
+  docker-build-and-check:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,3 +23,15 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t mercadito-frontend .
+
+      - name: Run Expo Web in background
+        run: |
+          docker run -d -p 19006:19006 --name mercadito-check mercadito-frontend
+          sleep 15
+
+      - name: Health check on Expo server
+        run: |
+          curl --fail http://localhost:19006 || (echo "Expo server did not respond" && exit 1)
+
+      - name: Stop container
+        run: docker stop mercadito-check
