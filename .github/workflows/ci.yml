@@ -40,7 +40,7 @@ jobs:
         uses: cypress-io/github-action@v6
         with:
           start: echo "already running"
-          wait-on: |
+          wait-on:
             - http://localhost:19006
             - http://localhost:3000
           wait-on-timeout: 60
