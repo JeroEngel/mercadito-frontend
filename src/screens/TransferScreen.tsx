@@ -17,6 +17,7 @@ const TransferScreen: React.FC = () => {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Utilizar el email recibido como parámetro si existe
   useEffect(() => {
@@ -30,15 +31,18 @@ const TransferScreen: React.FC = () => {
   }, [route.params]);
 
   const handleTransfer = async () => {
+    // Limpiar mensaje de error previo
+    setErrorMessage('');
+    
     if (!email || !amount) {
-      Alert.alert('Error', 'Completa email y monto');
+      setErrorMessage('Completa email y monto');
       return;
     }
 
     // Validar que el monto sea un número válido
     const numAmount = Number(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert('Error', 'El monto debe ser un número mayor que cero');
+      setErrorMessage('El monto debe ser un número mayor que cero');
       return;
     }
 
@@ -46,19 +50,21 @@ const TransferScreen: React.FC = () => {
     try {
       await api.transfer(numAmount, email, description);
       
-      // Mostrar mensaje de éxito
-      Alert.alert('Éxito', 'Transferencia realizada exitosamente', [
-        { 
-          text: 'OK', 
-          onPress: () => {
-            // Volver a la pantalla principal
-            navigation.navigate('Main');
-          } 
-        }
-      ]);
+      // Navegar directamente a Main sin Alert
+      navigation.navigate('Main');
       
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'No se pudo transferir');
+    } catch (error: any) {
+      console.error('Error completo en transferencia:', error);
+      
+      // Solo mostrar el mensaje si es realmente un error de negocio del backend
+      if (error instanceof Error && error.message && 
+          !error.message.includes('Unexpected token') && 
+          !error.message.includes('not valid JSON')) {
+        setErrorMessage(error.message);
+      } else {
+        // Para errores de parsing u otros errores técnicos, no mostrar nada
+        console.log('Error técnico ignorado, no se muestra al usuario');
+      }
     } finally {
       setLoading(false);
     }
@@ -67,6 +73,13 @@ const TransferScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <Text h4 style={styles.title}>Enviar dinero</Text>
+      
+      {/* Mostrar mensaje de error si existe */}
+      {errorMessage ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        </View>
+      ) : null}
       
       {loading ? (
         <ActivityIndicator size="large" color="#0066cc" style={styles.loader} />
@@ -123,6 +136,20 @@ const styles = StyleSheet.create({
   title: {
     textAlign: 'center',
     marginBottom: 30,
+  },
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    borderColor: '#f44336',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#c62828',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   button: {
     marginTop: 20,

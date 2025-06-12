@@ -15,19 +15,27 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleRegister = async () => {
+    // Limpiar mensaje de error previo
+    setErrorMessage('');
+    
     if (!firstName || !lastName || !email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      setErrorMessage('Por favor, completa todos los campos');
       return;
     }
 
     try {
       setLoading(true);
       await api.register({ firstName, lastName, email, password });
-      navigation.replace('Main');
+      // Navegar directamente al Login sin Alert
+      navigation.navigate('Login');
     } catch (error) {
-      Alert.alert('Error', 'Registration failed');
+      // Mostrar el mensaje específico del backend en la página
+      const backendErrorMessage = error instanceof Error ? error.message : 'Error desconocido en el registro';
+      setErrorMessage(backendErrorMessage);
+      console.error('Registration error:', error);
     } finally {
       setLoading(false);
     }
@@ -36,15 +44,23 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <Text h3 style={styles.title}>Create Account</Text>
+      
+      {/* Mostrar mensaje de error si existe */}
+      {errorMessage ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        </View>
+      ) : null}
+      
       <Input
-        placeholder="First Name"
+        placeholder="Nombre"
         value={firstName}
         onChangeText={setFirstName}
         testID="first-name-input"
         accessibilityLabel="First name input"
       />
       <Input
-        placeholder="Last Name"
+        placeholder="Apellido"
         value={lastName}
         onChangeText={setLastName}
         testID="last-name-input"
@@ -60,7 +76,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
         accessibilityLabel="Email input"
       />
       <Input
-        placeholder="Password"
+        placeholder="Contraseña"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -68,7 +84,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
         accessibilityLabel="Password input"
       />
       <Button
-        title="Register"
+        title="Registrarse"
         onPress={handleRegister}
         loading={loading}
         containerStyle={styles.buttonContainer}
@@ -76,7 +92,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
         accessibilityLabel="Register button"
       />
       <Button
-        title="Back to Login"
+        title="Volver a Iniciar Sesión"
         type="clear"
         onPress={() => navigation.goBack()}
         testID="back-to-login-button"
@@ -96,10 +112,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 30,
   },
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    borderColor: '#f44336',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#c62828',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
   buttonContainer: {
     marginTop: 20,
     width: '100%',
   },
 });
 
-export default RegisterScreen; 
+export default RegisterScreen;

@@ -13,10 +13,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleLogin = async () => {
+    // Limpiar mensaje de error previo
+    setErrorMessage('');
+    
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      setErrorMessage('Por favor, completa todos los campos');
       return;
     }
 
@@ -25,7 +29,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       await api.login(email, password);
       navigation.replace('Main');
     } catch (error) {
-      Alert.alert('Error', 'Invalid credentials');
+      // Mostrar el mensaje específico del backend en la página
+      const backendErrorMessage = error instanceof Error ? error.message : 'Error desconocido en el inicio de sesión';
+      setErrorMessage(backendErrorMessage);
+      console.error('Login error:', error);
     } finally {
       setLoading(false);
     }
@@ -34,6 +41,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <Text h3 style={styles.title}>Mercadito Wallet</Text>
+      
+      {/* Mostrar mensaje de error si existe */}
+      {errorMessage ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        </View>
+      ) : null}
+      
       <Input
         placeholder="Email"
         value={email}
@@ -44,7 +59,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         accessibilityLabel="Email input"
       />
       <Input
-        placeholder="Password"
+        placeholder="Contraseña"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -52,7 +67,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         accessibilityLabel="Password input"
       />
       <Button
-        title="Login"
+        title="Iniciar Sesión"
         onPress={handleLogin}
         loading={loading}
         containerStyle={styles.buttonContainer}
@@ -60,7 +75,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         accessibilityLabel="Login button"
       />
       <Button
-        title="Create Account"
+        title="Crear Cuenta"
         type="clear"
         onPress={() => navigation.navigate('Register')}
         testID="register-button"
@@ -80,10 +95,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 30,
   },
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    borderColor: '#f44336',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#c62828',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
   buttonContainer: {
     marginTop: 20,
     width: '100%',
   },
 });
 
-export default LoginScreen; 
+export default LoginScreen;

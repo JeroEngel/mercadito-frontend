@@ -70,14 +70,6 @@ const HomeScreen: React.FC = () => {
         testID="load-money-button"
         accessibilityLabel="Load money button"
       />
-      <Button
-        title="Ver historial de transacciones"
-        type="clear"
-        onPress={() => navigation.navigate('TransactionHistory' as never)}
-        containerStyle={styles.button}
-        testID="history-button"
-        accessibilityLabel="Transaction history button"
-      />
     </View>
   );
 };
